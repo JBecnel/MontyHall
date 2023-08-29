@@ -1,0 +1,606 @@
+<html><head><!-- This program (c) Jeremy James Becnel 2006 becnel@gmail.com 
+It is designed to simulation the Let's make a deal game.
+-->
+<title>Let's Make a Deal Simulation</title>
+
+<script language="JavaScript">
+<!--
+
+
+//======================================================================
+
+var prizePosition=0;  // holds value of position for door with prize behind it
+var tiger1Position=1; // holds value of position for one of the doors without a prize
+var tiger2Position=2; // holds value of position of other door without a prize
+
+var state  =0;   // state of the applet (i.e. 0=no door choosen, 1 = first door choosen, 2 = second door choosen, 3 = door exposed)
+
+var firstDoorChoosen= 0;  // records position of first door choosen
+
+var numKeptFirstChoice= 0;  // number of times user kept the first choosen door
+var numKeptAndWon= 0;  // number of times user kept the first choosen door and won
+var numKeptAndLost= 0; // number of times user switched the first choosen door and won
+
+var numChangeFirstChoice= 0; // number of times user switched the first choosen door
+var numChangedAndWon= 0;    // number of times user swithced the first choosen door and won
+var numChangedAndLost= 0;   // number of times user switched the first choosen door and lost
+
+var numSimulations=0;    // number of simulations to perform
+
+//================================================================
+
+//============================================================================
+
+
+if(navigator.appName != 'Microsoft Internet Explorer' || navigator.appVersion<4)
+   {alert("This script only works with MS Internet Explorer version 4 or later.");}
+
+// ====================================================================================
+
+function updateTable(){
+   /* This function updates the table displaying the statistics of the simulation. */
+
+
+  // update number of times you kept the first guess and changed it
+  if (numKeptFirstChoice == 1) {
+    document.all.timesKept.innerText=1 + " time";
+  } else {
+    document.all.timesKept.innerText=numKeptFirstChoice+ " times";
+  }
+  
+  if (numChangeFirstChoice==1) {
+    document.all.timesChanged.innerText=1 + " time";
+  } else {
+  	document.all.timesChanged.innerText=numChangeFirstChoice+ " times";
+  }
+
+  
+  // update the number of time you kept the first choice and won/loos
+  document.all.numKeptAndWon.innerText=numKeptAndWon;
+  document.all.numKeptAndLost.innerText=numKeptAndLost;
+  // update the number of time you changed the first choice and won/loos
+  document.all.numChangedAndWon.innerText=numChangedAndWon;
+  document.all.numChangedAndLost.innerText=numChangedAndLost;
+
+
+  // update percentages of table
+  if (numKeptFirstChoice != 0) {
+    document.all.keptWinPercentage.innerText="(" + Math.round(100*numKeptAndWon/numKeptFirstChoice)+"%)";
+	document.all.keptLosePercentage.innerText="(" + (100-Math.round(100*numKeptAndWon/numKeptFirstChoice))+"%)";
+  } else {
+    document.all.keptWinPercentage.innerText="(0%)";
+  	document.all.keptLosePercentage.innerText="(0%)";
+  }
+
+  if (numChangeFirstChoice != 0) {
+     document.all.numChangedAndWonPercentage.innerText="(" + Math.round(100*numChangedAndWon/numChangeFirstChoice)+"%)";
+     document.all.numChangedAndLostPercentage.innerText="(" + (100-Math.round(100*numChangedAndWon/numChangeFirstChoice))+"%)";
+  } else  {
+     document.all.numChangedAndWonPercentage.innerText="(" + 0 +"%)";
+     document.all.numChangedAndLostPercentage.innerText="(" + 0 +"%)";
+  }
+
+  return true;
+}
+
+//------------------------------------------------
+
+function clearTable(){
+   /* This function clears the table of statistics for the current simulation */
+   
+    // set all variables to 0
+	numKeptFirstChoice= 0;
+	numKeptAndWon= 0;
+	numKeptAndLost= 0;
+	numChangeFirstChoice= 0;
+	numChangedAndWon= 0;
+	numChangedAndLost=0;
+	
+	// clear table	
+	return updateTable();
+}
+
+
+//------------------------------------------------
+
+function mouseClick(doorName){   
+   /* This functions determines what action to take when the mouse is clicked */
+    
+    state++; // increment the state to say that another door has been clicked 
+             // or that it is time to reset   
+    if(state==1) {  // if one door is exposed, choose tiger (non-prize) door to reveal 
+      firstDoorChoosen=doorName;  // record the name of the first door choosen
+	  return revealNonPrizeDoor(doorName);
+	} 
+	
+	if(state==2) {  // if second choice has been made, reveal and record results.
+	   return revealResults(doorName);
+	}    	  
+    
+	return true;
+}
+
+
+
+//------------------------------------------------
+
+function revealNonPrizeDoor(doorName){
+  /* After the user selects a door, this function reveals one of the nonprize door. */
+	
+	// highlight choosen door with an X
+	document.all["door"+doorName].innerText="X";
+    
+    var doorToReveal = "";    
+    if (doorName == "Tiger1")  {  
+       doorToReveal = "Tiger2";
+    } else  if (doorName == "Tiger2") {
+       doorToReveal = "Tiger1";
+     } else {  // door is the prize
+       var n = getRandomInteger(2)+1; // random select either one of the two tiger doors
+       doorToReveal = "Tiger" + n;
+    }       
+
+    // reveal a nonprize door
+	document.all["image"+doorToReveal].style.visibility='visible';	
+	document.all["door"+doorToReveal].style.visibility='hidden';
+	
+	// provide the user with instructions
+	document.all.instructions.innerHTML="Click 'X' to keep your first choice <br>or click the other door to change it.";
+	
+	return doorToReveal;
+}
+
+
+//------------------------------------------------
+
+
+function revealResults(doorName){
+	/* Given the name of the second choosen door, this function reveals the results of a round */
+	
+	// open all the doors 
+	document.all.doorPrize.style.visibility='hidden';
+	document.all.doorTiger1.style.visibility='hidden';
+	document.all.doorTiger2.style.visibility='hidden';
+	
+	// display all the impages
+	document.all.imagePrize.style.visibility='visible';
+	document.all.imageTiger1.style.visibility='visible';
+	document.all.imageTiger2.style.visibility='visible';
+	
+	var results = "";  // used to record results of round
+
+	if(doorName==firstDoorChoosen) { // if user kept first choice
+        results = "You kept your first choice ";
+		numKeptFirstChoice++;
+		if(doorName=="Prize"){ // and won
+			numKeptAndWon++;
+		} else { // and lost
+			numKeptAndLost++;
+		}
+
+	} else { // if user changed first choice
+		numChangeFirstChoice++;
+	    results = "You switched your first choice ";
+		if(doorName=="Prize"){ // and won
+			numChangedAndWon++;
+		} else { // and lost
+			numChangedAndLost++;
+		}
+	}	
+	
+	// record results
+	if (doorName == "Prize") {
+      results = results + "and won the prize!";
+    }
+    else {
+      results = results + "and lost. Try again.";
+    } 
+    //display results
+	document.all.instructions.innerHTML=results;
+	
+	return updateTable();  // update the table of simulation statistics.
+}
+
+
+
+
+//------------------------------------------------
+
+
+function setUpNewGame(){
+   /* This function sets up a new game. */
+   
+	randomizeDoorPositions();  // put the prize behind a random door
+	
+	// make doors visible and hide images
+	document.all.doorPrize.style.visibility='visible';
+	document.all.imagePrize.style.visibility='hidden';
+	document.all.doorTiger1.style.visibility='visible';
+	document.all.imageTiger1.style.visibility='hidden';
+	document.all.doorTiger2.style.visibility='visible';
+	document.all.imageTiger2.style.visibility='hidden';
+	
+	// provide instructions
+	document.all.instructions.innerHTML="Select a door.";
+
+	state=0;  // reset the script to its initial state of 0
+}
+
+
+//------------------------------------------------
+
+
+
+function getRandomInteger(n)
+// This function takes an integer n and returns a random integer r where
+// 0 <= r <= n-1 
+{
+    var ranNum= Math.floor(Math.random()*n);
+    return ranNum;
+}
+
+
+
+//------------------------------------------------
+
+function randomizeDoorPositions(){
+  /* This function sets up the intial position of the doors by randomly selecting
+     where the prize should be 
+  */
+  
+  	prizePosition=getRandomInteger(3);  // random select the position of the prize
+  	
+  	// put the tigers in the other positions
+	if(prizePosition==0){
+		tiger1Position=1; 
+		tiger2Position=2;
+	} 
+	if(prizePosition==1){
+	    tiger1Position=0; 
+		tiger2Position=2;
+	}	
+	if(prizePosition==2){
+	    tiger1Position=0; 
+		tiger2Position=1;
+	}
+	
+	
+	// set the intial position of each door 
+	document.all.doorPrize.style.pixelLeft=25+225*prizePosition;
+	document.all.imagePrize.style.pixelLeft=25+225*prizePosition;
+	document.all.doorTiger1.style.pixelLeft=25+225*tiger1Position;
+	document.all.imageTiger1.style.pixelLeft=25+225*tiger1Position;
+	document.all.doorTiger2.style.pixelLeft=25+225*tiger2Position;
+	document.all.imageTiger2.style.pixelLeft=25+225*tiger2Position;
+	
+	// display 1, 2, and 3 on the outside of the door
+	document.all.doorPrize.innerText=prizePosition+1;
+	document.all.doorTiger1.innerText=tiger1Position+1;
+	document.all.doorTiger2.innerText=tiger2Position+1;
+
+	return true;
+}
+
+
+
+
+
+
+
+//-----------------------------------------------
+
+function chooseOtherDoor(firstDoorName, secondDoorName) {
+/* Given two of the three doors in the simulation, this function
+   returns the name of the third door
+*/
+
+if (firstDoorName == "Prize") {
+   if (secondDoorName == "Tiger1") 
+        return "Tiger2";     
+   else
+     return "Tiger1";   
+}
+
+if (firstDoorName == "Tiger1") {
+   if (secondDoorName == "Tiger2") 
+     return "Prize";
+   else
+     return "Tiger2";   
+}
+
+
+
+if (firstDoorName == "Tiger2") {
+   if (secondDoorName == "Tiger1") 
+     return "Prize";
+   else
+     return "Tiger1";   
+}
+
+}
+
+
+//------------------------------------------------
+
+function simulateGame(switchDoor){
+   /* This function simulates the game the number of times specified by numSimulations using
+      the rule that if switchDoor = 1, then the first guess is switched and if switchDoor = 0
+      the first guess is kept
+   */
+      
+	setUpNewGame();  // set up a new game
+	
+	/* CHOOSE THE FIRST DOOR */
+	var num =getRandomInteger(3)+1;  // choose a door at random to select
+	var doorChoosenFirst = "";  // variable to recond name of first door choosen
+	var revealedDoor = "";   // door revealed after first door selected
+	if (num == 3) {  // if the random number is 3, select prize door;
+	  doorChoosenFirst = "Prize";	  
+	}
+	else {	   // if the random number is 1 choose door Tiger1, if random number is 2, choose door Tiger2
+	   doorChoosenFirst = "Tiger" + num;
+	}
+    revealedDoor=mouseClick(doorChoosenFirst);  // simulate a click on the door
+    
+    /* CHOOSE THE SECOND DOOR ACCORDING TO RULE -- keep or switch first choice */
+    var doorChoosenSecond = "";
+    if (switchDoor == 0) {  // keep the first choice
+       doorChoosenSecond = doorChoosenFirst;
+    }
+    else {   // switch the first choice
+       doorChoosenSecond = chooseOtherDoor(doorChoosenFirst, revealedDoor);
+    }
+    
+	mouseClick(doorChoosenSecond);  // simulate a click on the second door
+	
+	
+	numSimulations--;  // record that one simulation has been completed
+	if(numSimulations>0){ // if more simulations are required
+		setTimeout("simulateGame("+switchDoor+");",2);  // give user a chance to stop, then run next sim
+	} else {
+	    // if simulation is finished
+		setUpNewGame(); // set up a new game
+		document.forms.simulation.Start.value="Simulate";
+	}
+	return true;
+}
+
+
+//------------------------------------------------
+
+function startOrStopSimulation(numberOfSims,switchDoor){
+   /* This function starts or halts the simulation */
+   
+	if(numSimulations>0){  // if the simulation has been started
+		numSimulations=0;  // stop it by setting numSimulations to 0
+		document.forms.simulation.Start.value="Simulate"; // reset the button to say Simulate
+	} else {  // otherwise start the simulation
+		document.forms.simulation.Start.value="   Stop   ";  // make the button say Stop
+		numSimulations=numberOfSims;  // set the number of simulations to run
+		simulateGame(switchDoor);  // start the simulation given the command
+	}
+	return true;
+}
+
+
+//-------------------------------------------------------
+
+function moveImagesTowardMiddle(middle, inc) {
+  /* This function moves the images towards the middle (given by middle) in increments given 
+     by inc until all the images overlap
+  */
+  
+  // record starting positions
+  var prizeLocation=document.all.imagePrize.style.pixelLeft;
+  var tiger1Location=document.all.imageTiger1.style.pixelLeft;
+  var tiger2Location=document.all.imageTiger2.style.pixelLeft;
+  
+  if(prizeLocation<middle){ // if image on left
+    document.all.imagePrize.style.pixelLeft=prizeLocation+5;  // move right
+  }
+  if(prizeLocation>middle){ // if image on right
+    document.all.imagePrize.style.pixelLeft=prizeLocation-inc;  // move left
+  }
+  if(tiger1Location<middle){ 
+    document.all.imageTiger1.style.pixelLeft=tiger1Location+inc; 
+  }
+  if(tiger1Location>middle){
+    document.all.imageTiger1.style.pixelLeft=tiger1Location-inc; 
+  }
+  if(tiger2Location<middle){ 
+    document.all.imageTiger2.style.pixelLeft=tiger2Location+inc; 
+  }
+  if(tiger2Location>middle){ 
+    document.all.imageTiger2.style.pixelLeft=tiger2Location-inc; 
+  }
+  
+  // once the tiger images have reached the middle
+  if(tiger1Location==tiger2Location){ 
+    // put all doors on top of images
+	document.all.doorPrize.style.pixelLeft=middle;
+	document.all.doorTiger1.style.pixelLeft=middle;
+	document.all.doorTiger2.style.pixelLeft=middle;
+  
+  	// put questions marks on doors
+    document.all.doorPrize.innerText="?";
+	document.all.doorTiger1.innerText="?";
+	document.all.doorTiger2.innerText="?";
+	
+    // display the doors
+	document.all.doorPrize.style.visibility='visible';
+	document.all.doorTiger1.style.visibility='visible';
+	document.all.doorTiger2.style.visibility='visible';
+    
+    
+    // hide the images
+	document.all.imagePrize.style.visibility='hidden';
+	document.all.imageTiger1.style.visibility='hidden';
+	document.all.imageTiger2.style.visibility='hidden';
+	
+    // reset the instructions 
+	document.all.instructions.innerText="";
+	
+	// finish reseting the game by moving the doors to proper locations
+	setTimeout('resetGame();', 250);
+ } else {
+    // if doors have not reached middle, continue to move
+	setTimeout('resetGame();', 1);
+ }
+
+	return true;
+}
+
+
+//----------------------------------------------------------------------
+
+function moveDoorsOutward(start, inc) {
+   /* This function moves the doors outward to the starting location given by start in
+      increments given by inc
+   */
+   
+   // note that it does not matter which doors we move outward because they get reset 
+   // later anyway
+   
+   // get the location of the first tiger door and move it inward
+   // then move the tiger 2 door outward	
+   var tiger1Location = document.all.doorTiger1.style.pixelLeft;
+   document.all.doorTiger1.style.pixelLeft= tiger1Location-inc;
+   document.all.doorTiger2.style.pixelLeft=document.all.doorTiger2.style.pixelLeft+inc;
+	
+   if(tiger1Location>start){  // if not at the beginning keep moving
+     setTimeout('resetGame();', 3);
+   } else {  // if the doors are at the beginning locations set up a new game
+	 setTimeout('setUpNewGame();', 3);
+   }
+}
+
+//------------------------------------------------
+
+function resetGame(){ // Perform moving
+	state = 0;  // reset state of project
+	if(document.all.imagePrize.style.visibility=="visible"){
+	   // if images are visible, move them towards middle in the given increment
+	   moveImagesTowardMiddle(250, 5);
+	} else {  // if doors are visible (images are hidden)
+	   // move them outward to the starting location given the increment
+	   moveDoorsOutward(25, 5);
+	}	
+	
+	return true;
+}
+
+
+
+
+
+
+
+</script></head>
+
+
+
+
+
+<h1>&nbsp;&nbsp;&nbsp; <i><font size="7" color="#FFFFFF">Let's Make a Deal</font></i></h1>
+
+
+<body onload="setUpNewGame(); document.all.div8.style.visibility='visible'; document.all.div10.style.visibility='visible'; document.all.div9.style.visibility='visible'; return true;" bgcolor="purple" text="yellow">
+<noscript>
+<h1>This web page using Javascript.</h1></noscript>
+
+<div id="doorPrize" style="position: absolute; left: 25px; top: 100px; width: 200px; height: 350px; 
+              font-weight: bold; background-color: 'yellow'; font-size: 120pt; font-family: Verdana; text-align: center; 
+              color: 'purple'; visibility: visible;" onmouseover="this.style.color='white'; return true;" 
+              onmouseout="this.style.color='purple'; return true;" onclick="mouseClick('Prize'); return true;">?
+</div>
+<div id="doorTiger1" style="position: absolute; left: 250px; top: 100px; width: 200px; height: 350px; 
+              font-weight: bold; background-color: 'yellow'; font-size: 120pt; font-family: Verdana; text-align: center; 
+              visibility: visible; color: 'purple';" onmouseover="this.style.color='white'; return true;" 
+              onmouseout="this.style.color='purple'; return true;" onclick="mouseClick('Tiger1'); return true;">?
+</div>
+<div id="doorTiger2" style="position: absolute; left: 475px; top: 100px; width: 200px; height: 350px; 
+			  font-weight: bold; background-color: 'yellow'; font-size: 120pt; font-family: Verdana; text-align: center; 
+			  color: 'purple'; visibility: visible;" onmouseover="this.style.color='white'; return true;" 
+			  onmouseout="this.style.color='purple'; return true;" onclick="mouseClick('Tiger2'); return true;">?
+</div>
+
+<div id="imagePrize" style="position: absolute; left: 25px; top: 100px; width: 200px; height: 350px; z-index: 3; visibility: hidden;" 
+	onmouseout="if(state==2){resetGame();} return true;" onclick="if(state==2){resetGame();} return true;">
+<img src="images/lsu.jpg" border="0" height="350" width="200"></div>
+
+<div id="imageTiger1" style="position: absolute; left: 250px; top: 100px; width: 200px; height: 350px; z-index: 3; visibility: hidden;"
+	 onmouseout="if(state==2){resetGame();} return true;" onclick="if(state==2){resetGame();} return true;">
+<img src="images/tiger2.jpg" border="0" height="350" width="200"></div>
+
+<div id="imageTiger2" style="position: absolute; left: 475px; top: 100px; width: 200px; height: 350px; z-index: 4; visibility: hidden;" 
+	onmouseout="if(state==2){resetGame();} return true;" onclick="if(state==2){resetGame();} return true;">
+<img src="images/tiger1.jpg" border="0" height="350" width="200"></div>
+
+<div id="instructions" style="position: absolute; left: 33; top: 486; width: 650; height: 30; visibility: visible; font-weight: bold; 
+  color: rgb(255, 255, 255); font-size: 18pt; font-family: Verdana,Arial,Geneva; text-align: center">
+  Choose a Door</div>
+
+<div id="div1" style="position: absolute; left: 676; top: 103; width: 236; height: 100; font-weight: bold; color: rgb(0, 0, 0); 
+   font-size: 12pt; font-family: Verdana,Arial,Geneva; text-align: center; visibility: visible">
+   Kept 1st Door: <font color="#FFFFFF"> <span id="timesKept"><br> 0 times</span></font>
+   
+<table width="189"><tbody><tr><td width="63">Wins:</td>
+  <td id="numKeptAndWon" align="right" width="19">0</td><td id="Line1" width="54">Percent</td>
+  <td id="keptWinPercentage" width="41">(0%)</td></tr>
+<tr><td width="63">Losses:</td><td id="numKeptAndLost" align="right" width="19">0</td>
+  <td id="Line2" width="54">Percent</td><td id="keptLosePercentage" width="41">(0%)</td></tr></tbody></table>
+</div>
+
+<div id="div2" style="position: absolute; left: 681; top: 233; width: 233; height: 138; font-weight: bold;
+  color: rgb(0, 0, 0); font-size: 12pt; font-family: Verdana,Arial,Geneva; text-align: center; visibility: visible">
+  Changed 1st Door: <font color="#FFFFFF"> <span id="timesChanged"><br>0 times</span></font>
+  
+<table width="188"><tbody><tr><td width="63">Wins:</td>
+  <td id="numChangedAndWon" align="right" width="18">0</td><td id="Line3" width="54">Percent</td>
+  <td id="numChangedAndWonPercentage" width="41">(0%)</td></tr>
+<tr><td width="63">Losses:</td><td id="numChangedAndLost" align="right" width="18">0</td>
+  <td id="Line4" width="54">Percent</td><td id="numChangedAndLostPercentage" width="41">(0%)</td></tr></tbody></table>
+  &nbsp; &nbsp; &nbsp; 
+<td>
+
+</div>
+  
+
+<div id="divClear" style="position: absolute; left: 720; top: 350; width: 233; height: 100; font-weight: bold;
+   color: rgb(0, 0, 0); font-size: 12pt; font-family: Verdana,Arial,Geneva; text-align: center; visibility: visible">
+<font color="#FFFFFF"> 
+<input value="Clear Tables" title="Clear the results thus far and start over" onclick="return clearTable();" type="button">
+</div>
+
+
+
+<div id="div3" style="position: absolute; left: 39; top: 554; width: 650; height: 54; color: rgb(255, 255, 255); 
+  font-size: 8pt; font-family: Verdana,Arial,Geneva; text-align: center; visibility: visible">
+<form name="simulation"><table style="color: rgb(0, 0, 0); font-size: 10pt; font-family: Verdana,Arial,Geneva;" border="0">
+<tbody><tr>
+<td><b><font size="4">Simulate </font></b> </td>
+<td><b><font size="4"><select name="Cycles" size="1"><option value="10">10</option>
+    <option value="30">30</option>
+    <option value="100" selected="selected">100</option>
+    <option value="200">200</option>
+    <option value="300">300</option>
+    <option value="500">500</option>
+    <option value="1000">1000</option>
+    <option value="10000">10000</option>
+</select></font></b></td>
+<td> <b><font size="4">times </font></b>  </td>
+<td><b><font size="4"><select name="Decision"><option value="0">keeping</option><option value="1">switching</option>
+</select></font></b></td>
+<td id="Line5"><b><font size="4">the first choosen door:</font></b></td>
+
+<td width="60"><b><font size="4">
+<input value="Simultate" name="Start" title="Start/stop automatic run" 
+onclick="startOrStopSimulation(this.form.Cycles.value,this.form.Decision.value); return true;" type="button">
+</font></b></td>
+<td style="color: rgb(255, 255, 255); font-weight: bold;"> &nbsp; &nbsp; &nbsp; </td>
+
+</tr>
+</tbody></table>
+</form></div>
+
+</body></html>
